@@ -154,7 +154,7 @@ namespace Heron
                 Transform userSRSToHeronTransform = new Transform(1);
                 Transform transform = new Transform(1);
                 ///Allow no transform for a straight export of coordinates if EAP is not set
-                if (RhinoDoc.ActiveDoc.EarthAnchorPoint.EarthLocationIsSet())
+                if (!ModelIsInHeronSRS && RhinoDoc.ActiveDoc.EarthAnchorPoint.EarthLocationIsSet())
                 {
                     ///Apply EAP to HeronSRS
                     heronToUserSRSTransform = Heron.Convert.GetUserSRSToHeronSRSTransform(heronSRS);
@@ -603,6 +603,12 @@ namespace Heron
 
         private bool exportCurvesAsPolygon = true;
 
+        /// <summary>
+        /// When true, Rhino model coordinates are written as-is (the model is drawn directly in Heron's SRS),
+        /// ignoring the Earth Anchor Point so no shift/rotation/scale is applied.
+        /// </summary>
+        public bool ModelIsInHeronSRS { get; set; } = false;
+
         public bool ExportCurveAsPolygon
         {
             get { return exportCurvesAsPolygon; }
@@ -644,6 +650,10 @@ namespace Heron
             base.AppendAdditionalComponentMenuItems(menu);
 
             ToolStripMenuItem item = Menu_AppendItem(menu, "Export closed polylines as polygons", Menu_ExportCurveAsPolygonClicked, true, ExportCurveAsPolygon);
+            ToolStripMenuItem srsItem = Menu_AppendItem(menu, "Model is drawn in Heron SRS (no EAP transform)", Menu_ModelIsInHeronSRSClicked, true, ModelIsInHeronSRS);
+            srsItem.ToolTipText = "Select this option if the Rhino model origin (0,0,0) is the origin of Heron's SRS, " +
+                "so model coordinates are already the SRS coordinates. Coordinates are exported untouched and the Earth Anchor Point is ignored.";
+
             item.ToolTipText = "Select this option to export closed polylines as polygons.  If more than one polyline exists in the branch, " +
                 "the first one is considered the outer linestring of the polygon and the rest are considered holes." +
                 "If unchecked, closed polyline(s) will be exported as (MULTI)LINESTRING.";
@@ -667,6 +677,13 @@ namespace Heron
             drvExtension = drvDict[drvType];
             Message = drvType;
 
+            ExpireSolution(true);
+        }
+
+        private void Menu_ModelIsInHeronSRSClicked(object sender, EventArgs e)
+        {
+            RecordUndoEvent("ModelIsInHeronSRS");
+            ModelIsInHeronSRS = !ModelIsInHeronSRS;
             ExpireSolution(true);
         }
 
@@ -724,6 +741,7 @@ namespace Heron
             writer.SetString("DriverType", DriverType);
             writer.SetString("DriverExtension", DriverExtension);
             writer.SetBoolean("ExportCurveAsPolygon", ExportCurveAsPolygon);
+            writer.SetBoolean("ModelIsInHeronSRS", ModelIsInHeronSRS);
             return base.Write(writer);
         }
 
@@ -732,6 +750,8 @@ namespace Heron
             DriverType = reader.GetString("DriverType");
             DriverExtension = reader.GetString("DriverExtension");
             ExportCurveAsPolygon = reader.GetBoolean("ExportCurveAsPolygon");
+            bool modelInSrs = false;
+            if (reader.TryGetBoolean("ModelIsInHeronSRS", ref modelInSrs)) ModelIsInHeronSRS = modelInSrs;
             return base.Read(reader);
         }
 
