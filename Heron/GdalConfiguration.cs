@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  *
  * Name:     GdalConfiguration.cs.pp
  * Project:  GDAL CSharp Interface
@@ -43,6 +43,7 @@ namespace Heron
         private static volatile bool _configuredOgr;
         private static volatile bool _configuredGdal;
         private static volatile bool _usable;
+        private static volatile string _initError = "";
 
         [DllImport("kernel32", CharSet = CharSet.Auto, SetLastError = true)]
         static extern bool SetDefaultDllDirectories(uint directoryFlags);
@@ -171,6 +172,8 @@ namespace Heron
             catch (Exception e)
             {
                 _usable = false;
+                _initError = $"GDAL setup failed: {e.Message} (Heron folder: '{executingDirectory}', native folder: '{nativePath}'). " +
+                    "Make sure the entire build output folder, including the 'gdal' subfolder, was copied together and is not blocked (right-click zip > Properties > Unblock).";
                 Trace.WriteLine(e, "error");
                 Trace.WriteLine($"Executing directory: {executingDirectory}", "error");
                 Trace.WriteLine($"gdal directory: {gdalPath}", "error");
@@ -194,7 +197,7 @@ namespace Heron
         /// <remarks>Be sure to call this function before using Gdal/Ogr/Osr</remarks>
         public static void ConfigureOgr()
         {
-            if (!_usable) return;
+            if (!_usable) throw new InvalidOperationException(_initError);
             if (_configuredOgr) return;
 
             // Register drivers
@@ -210,7 +213,7 @@ namespace Heron
         /// <remarks>Be sure to call this function before using Gdal/Ogr/Osr</remarks>
         public static void ConfigureGdal()
         {
-            if (!_usable) return;
+            if (!_usable) throw new InvalidOperationException(_initError);
             if (_configuredGdal) return;
 
             // Register drivers

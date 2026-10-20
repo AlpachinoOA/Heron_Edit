@@ -208,6 +208,16 @@ namespace Heron
     {
         public static string GetHeronFolder()
         {
+            ///Prefer the folder this assembly was actually loaded from, so a copied build works
+            ///regardless of Grasshopper's library folder settings or the folder name.
+            try
+            {
+                var loadedFrom = Path.GetDirectoryName(new Uri(typeof(HeronLocation).Assembly.CodeBase).LocalPath);
+                if (!string.IsNullOrEmpty(loadedFrom) && Directory.Exists(Path.Combine(loadedFrom, "gdal")))
+                    return loadedFrom;
+            }
+            catch { }
+
             string heronFolder = "";
             var asseblyFolders = Grasshopper.Folders.AssemblyFolders.Where(x => x.ToString().IndexOf("Heron", StringComparison.OrdinalIgnoreCase) >= 0);    
             foreach (var folder in asseblyFolders)
